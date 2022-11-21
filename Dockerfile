@@ -1,19 +1,50 @@
-FROM alpine:latest
-LABEL maintainer "Steven Iveson <steve@iveson.eu>"
-LABEL source "https://github.com/sjiveson/nfs-server-alpine"
-LABEL branch "master"
-COPY Dockerfile README.md /
+ARG BUILD_FROM=alpine:latest
 
-RUN apk add --no-cache --update --verbose nfs-utils bash iproute2 && \
-    rm -rf /var/cache/apk /tmp /sbin/halt /sbin/poweroff /sbin/reboot && \
-    mkdir -p /var/lib/nfs/rpc_pipefs /var/lib/nfs/v4recovery && \
-    echo "rpc_pipefs    /var/lib/nfs/rpc_pipefs rpc_pipefs      defaults        0       0" >> /etc/fstab && \
-    echo "nfsd  /proc/fs/nfsd   nfsd    defaults        0       0" >> /etc/fstab
+FROM $BUILD_FROM
 
-COPY exports /etc/
-COPY nfsd.sh /usr/bin/nfsd.sh
-COPY .bashrc /root/.bashrc
+RUN apk --update --no-cache add bash nfs-utils && \
+                                                  \
+    # remove the default config files
+    rm -v /etc/idmapd.conf /etc/exports
 
-RUN chmod +x /usr/bin/nfsd.sh
+# http://wiki.linux-nfs.org/wiki/index.php/Nfsv4_configuration
+RUN mkdir -p /var/lib/nfs/rpc_pipefs                                                     && \
+    mkdir -p /var/lib/nfs/v4recovery                                                     && \
+    echo "rpc_pipefs  /var/lib/nfs/rpc_pipefs  rpc_pipefs  defaults  0  0" >> /etc/fstab && \
+    echo "nfsd        /proc/fs/nfsd            nfsd        defaults  0  0" >> /etc/fstab
 
-ENTRYPOINT ["/usr/bin/nfsd.sh"]
+EXPOSE 2049
+
+RUN apk --update add fuse alpine-sdk automake autoconf libxml2-dev fuse-dev curl-dev git bash;
+RUN git clone https://github.com/s3fs-fuse/s3fs-fuse.git; \
+ cd s3fs-fuse; \
+ ./autogen.sh; \
+ ./configure --prefix=/usr; \
+ make; \
+ make install; \
+ rm -rf /var/cache/apk/*;
+
+# setup entrypoint
+COPY ./entrypoint.sh /usr/local/bin
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
